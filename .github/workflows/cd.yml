@@ -27,9 +27,15 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Set image tag
+      - name: Set image tag (nombre en minúsculas, requerido por Docker)
         id: meta
-        run: echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+        run: |
+          IMAGE="${REGISTRY}/${IMAGE_NAME,,}"
+          echo "tag=${IMAGE}:${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          echo "image_lower=${IMAGE}" >> "$GITHUB_OUTPUT"
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -44,8 +50,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ steps.meta.outputs.image_lower }}:${{ github.event.workflow_run.head_sha }}
+            ${{ steps.meta.outputs.image_lower }}:latest
 
   deploy:
     needs: build-and-push
@@ -62,7 +68,7 @@ jobs:
           DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
         run: |
           if [ -z "$DEPLOY_HOOK_URL" ]; then
-            echo "⚠️ DEPLOY_HOOK_URL no configurado todavía. Agregalo en Settings → Secrets → Actions."
+            echo "DEPLOY_HOOK_URL no configurado todavia. Agregalo en Settings -> Secrets -> Actions."
             echo "site_url=https://pendiente-de-configurar.example.com" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -70,4 +76,4 @@ jobs:
           echo "site_url=https://todo-api-cicd.onrender.com" >> "$GITHUB_OUTPUT"
 
       - name: Confirm deployment
-        run: echo "🚀 Imagen ${{ needs.build-and-push.outputs.image-tag }} desplegada a producción."
+        run: echo "Imagen ${{ needs.build-and-push.outputs.image-tag }} desplegada a produccion."
